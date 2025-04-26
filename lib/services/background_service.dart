@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:another_telephony/telephony.dart';
@@ -9,12 +10,12 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:uuid/uuid.dart';
-// Remove local notifications setup - background service handles its own foreground notification
-// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/filter.dart' as custom_filter;
 import '../utils/database_helper.dart';
 import '../models/forwarded_sms_log.dart';
+import 'sms_handler.dart'; // Import the dedicated SMS handler
 
 // --- Configuration ---
 const String notificationChannelId = 'auto_sms_channel';
@@ -112,166 +113,124 @@ void onStart(ServiceInstance service) async {
   });
 
   // Basic status update (optional)
-  Timer.periodic(const Duration(minutes: 15), (timer) {
-    print('[BG Service] Service heartbeat');
+  Timer.periodic(const Duration(minutes: 2), (timer) {
+    print('[BG Service] Service heartbeat - still alive');
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
         title: initialNotificationTitle,
-        content: "Running since ${DateTime.now().difference(DateTime.now().subtract(const Duration(minutes: 15) * timer.tick)).inMinutes} min",
+        content: "Running for ${timer.tick * 2} minutes",
       );
     }
   });
 
-  // --- Move SMS Listening Logic HERE --- 
+  // --- SMS Listening Logic --- 
   print('[BG Service] Setting up SMS listener...');
-  final Telephony telephony = Telephony.instance;
-  final dbHelper = DatabaseHelper();
-
-  // Permissions should ideally be granted before starting the service via UI,
-  // but we can double-check here.
-  bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
-
-  if (permissionsGranted ?? false) {
-    print('[BG Service] Permissions granted. Starting SMS listener...');
-
-    // Update notification to indicate we're setting up
-    if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: initialNotificationTitle,
-        content: "Setting up SMS listener...",
-      );
-    }
-
-    // Set up the listener within the background isolate
-    telephony.listenIncomingSms(
-      onNewMessage: (SmsMessage message) async { // Use correct type: SmsMessage
-        print('[BG Service] ---->>>> SMS RECEIVED! From: ${message.address}, Body: ${message.body?.substring(0, (message.body?.length ?? 0) > 20 ? 20 : (message.body?.length ?? 0))}...');
-        
-        // Update notification to show we received a message
-        if (service is AndroidServiceInstance) {
-          service.setForegroundNotificationInfo(
-            title: "New SMS Received",
-            content: "From: ${message.address ?? 'Unknown'} - Processing...",
-          );
-        }
-        
-        // Now call the processing function
-        try {
-          await processIncomingSms(message, dbHelper, telephony);
-          
-          // Update notification after processing
-          if (service is AndroidServiceInstance) {
-            service.setForegroundNotificationInfo(
-              title: initialNotificationTitle,
-              content: "Last SMS processed at ${DateTime.now().hour}:${DateTime.now().minute}",
-            );
-          }
-        } catch (e) {
-          print('[BG Service] Error processing SMS: $e');
-          
-          // Update notification to show error
-          if (service is AndroidServiceInstance) {
-            service.setForegroundNotificationInfo(
-              title: initialNotificationTitle,
-              content: "Error processing last SMS",
-            );
-          }
-        }
-      },
-      listenInBackground: false // Service handles the background execution
-    );
-
-    print('[BG Service] SMS Listener registered.');
-    
-    // Update notification to show active listening
-    if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: initialNotificationTitle, 
-        content: "Actively listening for messages...",
-      );
-    }
-  } else {
-    print('[BG Service] SMS Permissions NOT granted. Stopping service.');
-    
-    // Update notification to show error
-    if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: initialNotificationTitle, 
-        content: "SMS Permission Denied. Service Stopped.",
-      );
-    }
-    
-    await Future.delayed(const Duration(seconds: 3)); // Give time for notification update
-    service.stopSelf();
-  }
+  await _initializeSmsListener(service);
 }
 
-// --- Shared SMS Processing Logic (Keep as is) ---
-Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Telephony telephony) async {
-  if (message.body == null || message.address == null) {
-    print('[ProcessSMS] Received incomplete SMS data.');
-    return;
-  }
+// Separate function to make SMS setup more manageable
+Future<void> _initializeSmsListener(ServiceInstance service) async {
   try {
-    final filters = await dbHelper.getAllFilters();
-    print('[ProcessSMS] Loaded ${filters.length} filters for matching.');
-    custom_filter.Filter? matchedFilter;
-    for (final filter in filters) {
-      bool allConditionsMet = true;
-      if (filter.conditions.isEmpty) {
-          allConditionsMet = false;
-          continue;
-      }
-      for (final condition in filter.conditions) {
-        bool conditionMet = false;
-        String? smsValue;
-        if (condition.type == custom_filter.FilterConditionType.sender) {
-          smsValue = message.address;
-        }
-        else { // FilterConditionType.content
-          smsValue = message.body;
-        }
-        if (smsValue == null) {
-            allConditionsMet = false;
-            break;
-        }
-        if (condition.type == custom_filter.FilterConditionType.content && condition.caseSensitive) {
-          conditionMet = smsValue.contains(condition.value);
-        } else {
-          conditionMet = smsValue.toLowerCase().contains(condition.value.toLowerCase());
-        }
-        if (!conditionMet) {
-          allConditionsMet = false;
-          break;
-        }
-      }
-      if (allConditionsMet) {
-        matchedFilter = filter;
-        print('[ProcessSMS] Filter matched: ${filter.id}');
-        break;
-      }
+    print('[SMS Init] Beginning SMS listener setup');
+    
+    // Initialize telephony instance
+    final Telephony telephony = Telephony.instance;
+    print('[SMS Init] Telephony instance created');
+    
+    // Initialize database helper
+    final dbHelper = DatabaseHelper();
+    print('[SMS Init] Database helper initialized');
+
+    // Check permissions explicitly
+    print('[SMS Init] Checking SMS permissions');
+    bool smsPermission = await Permission.sms.status.isGranted;
+    bool phonePermission = await Permission.phone.status.isGranted;
+    
+    print('[SMS Init] Permission status - SMS: $smsPermission, Phone: $phonePermission');
+    
+    if (!smsPermission || !phonePermission) {
+      print('[SMS Init] Requesting missing permissions');
+      await Permission.sms.request();
+      await Permission.phone.request();
+      
+      // Check again after request
+      smsPermission = await Permission.sms.status.isGranted;
+      phonePermission = await Permission.phone.status.isGranted;
+      print('[SMS Init] Updated permission status - SMS: $smsPermission, Phone: $phonePermission');
     }
-    if (matchedFilter != null && matchedFilter.recipients.isNotEmpty) {
-      print('[ProcessSMS] Forwarding SMS to: ${matchedFilter.recipients.join(", ")}');
-      for (final recipient in matchedFilter.recipients) {
-        String status = 'Failed';
-        String? errorMessage;
-        try {
-          String forwardMessage = "Fwd from ${message.address ?? 'Unknown Sender'}:\n${message.body ?? '[Empty Body]'}";
-          await telephony.sendSms(to: recipient, message: forwardMessage);
-          print('[ProcessSMS] Successfully forwarded to $recipient');
-          status = 'Sent';
-        } catch (e) {
-          errorMessage = e.toString();
-          print('[ProcessSMS] Error sending SMS to $recipient: $errorMessage');
-        }
-        await logForwardedSms(dbHelper, message, recipient, matchedFilter.id, status, errorMessage);
+
+    if (smsPermission && phonePermission) {
+      print('[SMS Init] All permissions granted, setting up SMS listener');
+      
+      // Update notification to show we're setting up
+      if (service is AndroidServiceInstance) {
+        service.setForegroundNotificationInfo(
+          title: initialNotificationTitle,
+          content: "Setting up SMS listener...",
+        );
       }
+
+      // Listen for incoming SMS messages
+      print('[SMS Init] Registering onNewMessage handler');
+      telephony.listenIncomingSms(
+        onNewMessage: (SmsMessage message) async {
+          print('[SMS RECEIVED] From: ${message.address}, Body: ${message.body?.substring(0, min(20, message.body?.length ?? 0))}...');
+          
+          // Update notification immediately
+          if (service is AndroidServiceInstance) {
+            service.setForegroundNotificationInfo(
+              title: "New SMS Received",
+              content: "From: ${message.address ?? 'Unknown'}",
+            );
+          }
+          
+          // Process the SMS using the dedicated handler
+          try {
+            print('[SMS Process] Processing incoming SMS');
+            await processIncomingSms(message, dbHelper, telephony);
+            print('[SMS Process] SMS processed successfully');
+          } catch (e) {
+            print('[SMS Process] Error processing SMS: $e');
+          }
+        },
+        onBackgroundMessage: backgroundMessageHandler, // Use the dedicated background handler
+        listenInBackground: true  // Enable proper background handling
+      );
+
+      print('[SMS Init] SMS listener registered successfully');
+      
+      // Update notification
+      if (service is AndroidServiceInstance) {
+        service.setForegroundNotificationInfo(
+          title: initialNotificationTitle,
+          content: "Listening for SMS messages",
+        );
+      }
+      
+      // Test if the listener is working by sending a log message every minute
+      Timer.periodic(const Duration(minutes: 1), (timer) {
+        print('[SMS Listener Check] SMS listener should be active: ${DateTime.now()}');
+      });
+      
     } else {
-      print('[ProcessSMS] No matching filter found or filter has no recipients.');
+      print('[SMS Init] Required permissions not granted');
+      
+      if (service is AndroidServiceInstance) {
+        service.setForegroundNotificationInfo(
+          title: "Permission Error",
+          content: "SMS and phone permissions required",
+        );
+      }
     }
+    
   } catch (e) {
-    print('[ProcessSMS] Error processing SMS: $e');
+    print('[SMS Init] Exception during SMS initialization: $e');
+    if (service is AndroidServiceInstance) {
+      service.setForegroundNotificationInfo(
+        title: "Service Error",
+        content: "Failed to initialize SMS listener",
+      );
+    }
   }
 }
 
