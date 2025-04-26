@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/filter.dart'; // Adjust path if necessary
+import '../widgets/filter_wizard.dart'; // Import the wizard
 
 class FiltersTab extends StatefulWidget {
   const FiltersTab({super.key});
 
   @override
-  State<FiltersTab> createState() => _FiltersTabState();
+  State<FiltersTab> createState() => FiltersTabState();
 }
 
-class _FiltersTabState extends State<FiltersTab> {
+class FiltersTabState extends State<FiltersTab> {
   // In-memory list of filters for now
   final List<Filter> _filters = [];
 
@@ -36,24 +37,30 @@ class _FiltersTabState extends State<FiltersTab> {
     // TODO: Persist deletion
   }
 
-  void _openAddFilterDialog() {
-    // TODO: Implement filter wizard dialog
-    print("Open Add Filter Dialog");
-    // For testing, add a dummy filter
-    _addFilter(Filter(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      recipients: ['+1112223333'],
-      conditions: [
-        FilterCondition(type: FilterConditionType.sender, value: 'Bank'),
-        FilterCondition(type: FilterConditionType.content, value: 'OTP', caseSensitive: true),
-      ],
-      selectedSim: 'SIM 1',
-    ));
+  Future<void> openAddFilterDialog() async {
+    final newFilter = await showDialog<Filter>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const FilterWizard();
+      },
+    );
+    if (newFilter != null) {
+      _addFilter(newFilter);
+    }
   }
 
-  void _openEditFilterDialog(Filter filter) {
-    // TODO: Implement filter wizard dialog pre-filled with filter data
-    print("Open Edit Filter Dialog for ${filter.id}");
+  Future<void> openEditFilterDialog(Filter filter) async {
+    final editedFilter = await showDialog<Filter>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return FilterWizard(initialFilter: filter);
+      },
+    );
+    if (editedFilter != null) {
+      _editFilter(filter, editedFilter);
+    }
   }
 
   @override
@@ -86,7 +93,7 @@ class _FiltersTabState extends State<FiltersTab> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () => _openEditFilterDialog(filter),
+                  onPressed: () => openEditFilterDialog(filter),
                   tooltip: 'Edit Filter',
                 ),
                 IconButton(
@@ -96,7 +103,7 @@ class _FiltersTabState extends State<FiltersTab> {
                 ),
               ],
             ),
-            onTap: () => _openEditFilterDialog(filter), // Allow tapping anywhere to edit
+            onTap: () => openEditFilterDialog(filter),
           ),
         );
       },
@@ -132,10 +139,10 @@ class _FiltersTabState extends State<FiltersTab> {
   }
 }
 
-// Expose a way for HomePage to trigger adding filters
-// This is a simple way; consider Provider/Riverpod for better state management
-GlobalKey<_FiltersTabState> filtersTabKey = GlobalKey<_FiltersTabState>();
+// Remove the triggerAddFilterDialog function as it's not needed anymore
+// The FAB directly calls the instance method via the GlobalKey approach.
+// GlobalKey<_FiltersTabState> filtersTabKey = GlobalKey<_FiltersTabState>();
 
-void triggerAddFilterDialog() {
-  filtersTabKey.currentState?._openAddFilterDialog();
-} 
+// void triggerAddFilterDialog() {
+//   filtersTabKey.currentState?._openAddFilterDialog();
+// } 

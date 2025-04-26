@@ -12,6 +12,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0; // To track the current tab index
+  final filtersTabKey = GlobalKey<filters_tab.FiltersTabState>(); // Use the state's type
 
   @override
   void initState() {
@@ -55,14 +56,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         controller: _tabController,
         children: [
           const ResultsTab(),
-          // Use the key here
-          filters_tab.FiltersTab(key: filters_tab.filtersTabKey),
+          // Use the key here, associating it with the FiltersTab widget
+          filters_tab.FiltersTab(key: filtersTabKey),
         ],
       ),
       // Conditionally display FAB based on the current tab index
       floatingActionButton: _currentIndex == 1 // Show only on Filters tab (index 1)
           ? FloatingActionButton(
-              onPressed: filters_tab.triggerAddFilterDialog, // Call the exposed function
+              // Directly access the method on the state via the key
+              onPressed: () => filtersTabKey.currentState?.openAddFilterDialog(),
               tooltip: 'Add Filter',
               child: const Icon(Icons.add),
             )
