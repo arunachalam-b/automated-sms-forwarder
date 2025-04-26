@@ -14,15 +14,19 @@ class FilterWizard extends StatefulWidget {
 class _FilterWizardState extends State<FilterWizard> {
   final _pageController = PageController();
   int _currentPage = 0;
-  final _formKeys = [GlobalKey<FormState>(), GlobalKey<FormState>(), GlobalKey<FormState>()]; // One key per page if needed
+  final _formKeys = [
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>()
+  ];
 
-  // State variables for the filter being built/edited
+  // State variables
   late String _filterId;
   List<String> _recipients = [];
   List<FilterCondition> _conditions = [];
   String? _selectedSim;
 
-  // Controllers for input fields
+  // Controllers
   final _recipientController = TextEditingController();
   // TODO: Add controllers for condition inputs
 
@@ -50,18 +54,27 @@ class _FilterWizardState extends State<FilterWizard> {
   }
 
   void _nextPage() {
-    // Optional: Validate current page form before proceeding
-    // if (_formKeys[_currentPage].currentState?.validate() ?? false) {
-      if (_currentPage < 2) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-        setState(() {
-          _currentPage++;
-        });
-      }
-    // }
+    // Validate recipients page before proceeding
+    if (_currentPage == 0) {
+        if (_recipients.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please add at least one recipient.')),
+            );
+            return; // Don't proceed if no recipients
+        }
+    } 
+    // Add validation for other pages later if needed
+    // else if (_currentPage == 1) { ... }
+
+    if (_currentPage < 2) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() {
+        _currentPage++;
+      });
+    }
   }
 
   void _previousPage() {
@@ -77,8 +90,29 @@ class _FilterWizardState extends State<FilterWizard> {
   }
 
   void _submitFilter() {
-    // Optional: Validate final page form
-    // if (_formKeys[_currentPage].currentState?.validate() ?? false) {
+     if (_recipients.isEmpty) {
+         ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please add at least one recipient before submitting.')),
+         );
+         // Optionally navigate back to the first page
+         if (_currentPage != 0) {
+             _pageController.jumpToPage(0);
+             setState(() { _currentPage = 0; });
+         }
+         return;
+     }
+     if (_conditions.isEmpty) {
+         ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please add at least one condition before submitting.')),
+         );
+         if (_currentPage != 1) {
+             _pageController.jumpToPage(1);
+             setState(() { _currentPage = 1; });
+         }
+         return;
+     }
+      // Add validation for SIM selection if needed
+
       final newFilter = Filter(
         id: _filterId,
         recipients: _recipients,
@@ -86,7 +120,6 @@ class _FilterWizardState extends State<FilterWizard> {
         selectedSim: _selectedSim,
       );
       Navigator.of(context).pop(newFilter); // Return the created/edited filter
-    // }
   }
 
   @override
@@ -126,28 +159,128 @@ class _FilterWizardState extends State<FilterWizard> {
     );
   }
 
-  // Placeholder builders for each page
   Widget _buildRecipientsPage() {
-    // TODO: Implement recipients UI (TextFormField, Add button, List/Chips)
     return Form(
       key: _formKeys[0],
-      child: const Center(child: Text('Page 1: Recipients')),
+      child: SingleChildScrollView(
+        // Ensure content scrolls if it overflows
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Take minimum vertical space
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Forward SMS To:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            // --- Recipient Input Row ---
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start, // Align items top
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _recipientController,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter Phone Number',
+                      border: OutlineInputBorder(),
+                      hintText: '+1234567890',
+                    ),
+                    keyboardType: TextInputType.phone,
+                    // Basic validation: not empty
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        // No error shown directly, button handles logic
+                        return null; // Returning null means valid for the field itself
+                      }
+                      // TODO: Add more robust phone validation later
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0), // Align button slightly
+                  child: ElevatedButton(
+                    onPressed: _addRecipient,
+                    child: const Text('Add'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // --- Select from Contacts Button ---
+            Center(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.contact_phone),
+                label: const Text('Select from Contacts'),
+                onPressed: _selectFromContacts, // Placeholder action
+              ),
+            ),
+            const SizedBox(height: 15),
+            // --- Display Added Recipients ---
+            const Text('Recipients:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 5),
+            if (_recipients.isEmpty)
+              const Text(' No recipients added yet.')
+            else
+              Wrap(
+                spacing: 8.0, // Horizontal space between chips
+                runSpacing: 4.0, // Vertical space between lines
+                children: _recipients.map((recipient) {
+                  return Chip(
+                    label: Text(recipient),
+                    onDeleted: () {
+                      setState(() {
+                        _recipients.remove(recipient);
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addRecipient() {
+    final number = _recipientController.text.trim();
+    if (number.isNotEmpty) {
+      // Basic check to prevent duplicates
+      if (!_recipients.contains(number)) {
+        setState(() {
+          _recipients.add(number);
+        });
+        _recipientController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$number is already added.')),
+        );
+      }
+    } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a phone number to add.')),
+        );
+    }
+  }
+
+  void _selectFromContacts() {
+    // TODO: Implement contact selection using a plugin
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Contact selection not yet implemented.')),
     );
   }
 
   Widget _buildConditionsPage() {
-    // TODO: Implement conditions UI (Add button, List of conditions with type/value/case inputs)
+    // TODO: Implement conditions UI
      return Form(
       key: _formKeys[1],
-      child: const Center(child: Text('Page 2: Conditions')),
+      child: const Center(child: Text('Page 2: Conditions - Placeholder')),
     );
   }
 
   Widget _buildSimSelectionPage() {
-    // TODO: Implement SIM selection UI (Dropdown/Radio buttons)
+    // TODO: Implement SIM selection UI
      return Form(
       key: _formKeys[2],
-      child: const Center(child: Text('Page 3: SIM Selection')),
+      child: const Center(child: Text('Page 3: SIM Selection - Placeholder')),
     );
   }
 } 
