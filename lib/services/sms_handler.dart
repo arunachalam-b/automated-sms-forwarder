@@ -71,7 +71,7 @@ Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Tel
         String status = 'Failed';
         String? errorMessage;
         try {
-          String forwardMessage = "Fwd from ${message.address ?? 'Unknown Sender'}:\n${message.body ?? '[Empty Body]'}";
+          String forwardMessage = message.body ?? '[Empty Body]';
           await telephony.sendSms(to: recipient, message: forwardMessage);
           print('[ProcessSMS] Successfully forwarded to $recipient');
           status = 'Sent';
