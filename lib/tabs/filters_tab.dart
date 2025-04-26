@@ -86,8 +86,7 @@ class FiltersTabState extends State<FiltersTab> {
           margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           child: ListTile(
             title: Text('Forward to: ${filter.recipients.join(", ")}'),
-            subtitle: Text(
-                'Conditions: ${filter.conditions.length}, SIM: ${filter.selectedSim ?? 'Default'}'),
+            subtitle: Text('Conditions: ${filter.conditions.length}'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
