@@ -25,6 +25,7 @@ const String stopServiceAction = 'stopService';
 Future<void> initializeBackgroundService() async {
   // final service = FlutterBackgroundService();
   final telephony = Telephony.instance;
+  final dbHelper = DatabaseHelper();
 
   // // --- Android Notification Channel ---
   // // Required for foreground service notification
@@ -47,10 +48,10 @@ Future<void> initializeBackgroundService() async {
   //     onStart: onStart,
   //     autoStart: true, // Start service automatically on boot (requires RECEIVE_BOOT_COMPLETED permission)
   //     isForegroundMode: true,
-  //     notificationChannelId: notificationChannelId,
-  //     initialNotificationTitle: initialNotificationTitle,
-  //     initialNotificationContent: notificationContent,
-  //     foregroundServiceNotificationId: notificationId,
+  //     // notificationChannelId: notificationChannelId,
+  //     // initialNotificationTitle: initialNotificationTitle,
+  //     // initialNotificationContent: notificationContent,
+  //     // foregroundServiceNotificationId: notificationId,
   //     // autoStartOnBoot: true, // Consider adding this later if needed
   //   ),
   //   // iOS configuration (placeholder, as background SMS listening is limited on iOS)
@@ -61,12 +62,13 @@ Future<void> initializeBackgroundService() async {
   //   ),
   // );
   telephony.listenIncomingSms(
-		onNewMessage: (dynamic message) {
+		onNewMessage: (dynamic message) async {
 			// Handle message
       print("New message received =================== ");
       print("Sender: ${message} ================ ");
 
-      Telephony.backgroundInstance.sendSms(to: "9266396714", message: "Message from background");
+      // Telephony.backgroundInstance.sendSms(to: "9266396714", message: "Message from background");
+      await processIncomingSms(message, dbHelper, telephony);
 		},
 		listenInBackground: false
 	);
@@ -90,186 +92,183 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 // 	Telephony.backgroundInstance.sendSms(to: "123456789", message: "Message from background");
 // }
 
+// --- Main Background Entry Point (Android Mostly) ---
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
-  print("Calling onStart =================== ");
+  print(" ============================= Background Service Started ============================= ");
+  // // Initialize Dart plugins
+  // DartPluginRegistrant.ensureInitialized();
+
+  // // Special setup for Android background service
+  // if (service is AndroidServiceInstance) {
+  //   service.on('setAsForeground').listen((event) {
+  //     service.setAsForegroundService();
+  //   });
+
+  //   service.on('setAsBackground').listen((event) {
+  //     service.setAsBackgroundService();
+  //   });
+  // }
+
+  // // Stop service listener
+  // service.on(stopServiceAction).listen((event) {
+  //   service.stopSelf();
+  // });
+
+  // // --- Main Logic: Listen for SMS --- 
+  // print(' =================================== Background Service Started ====================================================== ');
+  // final Telephony telephony = Telephony.instance;
+  // final dbHelper = DatabaseHelper(); // Initialize DB Helper in background
+
+  // // Request necessary permissions if not already handled
+  // // Note: It's better to request permissions from the UI before starting the service
+  // bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
+
+  // if (permissionsGranted ?? false) {
+  //   print(' =================================== SMS Permissions granted in background service. ====================================================== ');
+
+  //   telephony.listenIncomingSms(
+  //       onNewMessage: (dynamic message) async {
+  //         print(' =================================== Background Service: New SMS Received - ${message.address} : ${message.body?.substring(0, 10)}... ================================== ');
+  //         await processIncomingSms(message, dbHelper, telephony);
+  //       },
+  //       listenInBackground: false // We are already in the background service
+  //   );
+  // } else {
+  //    print(' =================================== SMS Permissions NOT granted in background service. Stopping.');
+  //     // Optionally, notify the UI or stop the service
+  //    service.stopSelf();
+  // }
+
+  // print(" ============================== Coming outside");
+  // // Keep the service alive
+  // service.invoke('updateNotification', {'content': 'Listening for messages...'});
 }
 
-// --- Main Background Entry Point (Android Mostly) ---
-// @pragma('vm:entry-point')
-// void onStart(ServiceInstance service) async {
-//   // Initialize Dart plugins
-//   DartPluginRegistrant.ensureInitialized();
+// --- Shared SMS Processing Logic ---
+Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Telephony telephony) async {
+  if (message.body == null || message.address == null) {
+    print(' =================================== Received incomplete SMS data.');
+    return;
+  }
 
-//   // Special setup for Android background service
-//   if (service is AndroidServiceInstance) {
-//     service.on('setAsForeground').listen((event) {
-//       service.setAsForegroundService();
-//     });
+  try {
+    final filters = await dbHelper.getAllFilters();
+    print(' =================================== Loaded ${filters.length} filters for matching. ===================================== ');
 
-//     service.on('setAsBackground').listen((event) {
-//       service.setAsBackgroundService();
-//     });
-//   }
+    custom_filter.Filter? matchedFilter;
 
-//   // Stop service listener
-//   service.on(stopServiceAction).listen((event) {
-//     service.stopSelf();
-//   });
+    for (final filter in filters) {
+      bool allConditionsMet = true;
+      if (filter.conditions.isEmpty) {
+          allConditionsMet = false; // Require at least one condition
+          continue;
+      }
 
-//   // --- Main Logic: Listen for SMS --- 
-//   print(' =================================== Background Service Started ====================================================== ');
-//   final Telephony telephony = Telephony.instance;
-//   final dbHelper = DatabaseHelper(); // Initialize DB Helper in background
+      for (final condition in filter.conditions) {
+        bool conditionMet = false;
+        String? smsValue;
 
-//   // Request necessary permissions if not already handled
-//   // Note: It's better to request permissions from the UI before starting the service
-//   bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
+        if (condition.type == custom_filter.FilterConditionType.sender) {
+          smsValue = message.address; // Check against sender address
+        }
+        else { // FilterConditionType.content
+          smsValue = message.body;
+        }
 
-//   if (permissionsGranted ?? false) {
-//     print(' =================================== SMS Permissions granted in background service. ====================================================== ');
+        if (smsValue == null) {
+            allConditionsMet = false;
+            break; // Cannot evaluate if value is null
+        }
 
-//     telephony.listenIncomingSms(
-//         onNewMessage: (SmsMessage message) async {
-//           print(' =================================== Background Service: New SMS Received - ${message.address} : ${message.body?.substring(0, 10)}... ================================== ');
-//           await processIncomingSms(message, dbHelper, telephony);
-//         },
-//         listenInBackground: false // We are already in the background service
-//         );
-//   } else {
-//      print(' =================================== SMS Permissions NOT granted in background service. Stopping.');
-//       // Optionally, notify the UI or stop the service
-//      service.stopSelf();
-//   }
+        // Perform comparison
+        if (condition.type == custom_filter.FilterConditionType.content && condition.caseSensitive) {
+          conditionMet = smsValue.contains(condition.value);
+        } else {
+          conditionMet = smsValue.toLowerCase().contains(condition.value.toLowerCase());
+        }
 
-//   // Keep the service alive
-//   service.invoke('updateNotification', {'content': 'Listening for messages...'});
-// }
+        if (!conditionMet) {
+          allConditionsMet = false;
+          break; // No need to check other conditions for this filter
+        }
+      }
 
-// // --- Shared SMS Processing Logic ---
-// Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Telephony telephony) async {
-//   if (message.body == null || message.address == null) {
-//     print(' =================================== Received incomplete SMS data.');
-//     return;
-//   }
+      if (allConditionsMet) {
+        matchedFilter = filter;
+        print(' =================================== Filter matched: ${filter.id}');
+        break; // Found the first matching filter
+      }
+    }
 
-//   try {
-//     final filters = await dbHelper.getAllFilters();
-//     print(' =================================== Loaded ${filters.length} filters for matching. ===================================== ');
+    // --- Send SMS if matched ---
+    if (matchedFilter != null && matchedFilter.recipients.isNotEmpty) {
+      print(' =================================== Forwarding SMS to: ${matchedFilter.recipients.join(", ")}');
+      // bool allSent = true; // Can track overall success if needed
 
-//     custom_filter.Filter? matchedFilter;
+      for (final recipient in matchedFilter.recipients) {
+        String status = 'Failed'; // Default to failed
+        String? errorMessage;
+        try {
+          String forwardMessage = "Fwd from ${message.address ?? 'Unknown Sender'}:\n${message.body ?? '[Empty Body]'}";
 
-//     for (final filter in filters) {
-//       bool allConditionsMet = true;
-//       if (filter.conditions.isEmpty) {
-//           allConditionsMet = false; // Require at least one condition
-//           continue;
-//       }
+          await telephony.sendSms(
+            to: recipient,
+            message: forwardMessage,
+          );
+          print(' =================================== Successfully forwarded to $recipient');
+          status = 'Sent'; // Update status on success
+        } catch (e) {
+          // allSent = false;
+          errorMessage = e.toString();
+          print(' =================================== Error sending SMS to $recipient: $errorMessage');
+        }
 
-//       for (final condition in filter.conditions) {
-//         bool conditionMet = false;
-//         String? smsValue;
+        // --- Log the attempt --- 
+        await logForwardedSms(
+            dbHelper,
+            message,
+            recipient,
+            matchedFilter.id,
+            status,
+            errorMessage,
+         );
+      }
+    } else {
+      print(' =================================== No matching filter found or filter has no recipients.');
+    }
 
-//         if (condition.type == custom_filter.FilterConditionType.sender) {
-//           smsValue = message.address; // Check against sender address
-//         }
-//         else { // FilterConditionType.content
-//           smsValue = message.body;
-//         }
+  } catch (e) {
+    print(' =================================== Error processing SMS: $e');
+    // Consider logging this error as well, maybe with a special status
+  }
+}
 
-//         if (smsValue == null) {
-//             allConditionsMet = false;
-//             break; // Cannot evaluate if value is null
-//         }
+// --- Logging Logic --- 
+Future<void> logForwardedSms(
+    DatabaseHelper dbHelper,
+    SmsMessage originalMessage,
+    String forwardedTo,
+    String filterId,
+    String status,
+    String? errorMessage,
+  ) async {
 
-//         // Perform comparison
-//         if (condition.type == custom_filter.FilterConditionType.content && condition.caseSensitive) {
-//           conditionMet = smsValue.contains(condition.value);
-//         } else {
-//           conditionMet = smsValue.toLowerCase().contains(condition.value.toLowerCase());
-//         }
-
-//         if (!conditionMet) {
-//           allConditionsMet = false;
-//           break; // No need to check other conditions for this filter
-//         }
-//       }
-
-//       if (allConditionsMet) {
-//         matchedFilter = filter;
-//         print(' =================================== Filter matched: ${filter.id}');
-//         break; // Found the first matching filter
-//       }
-//     }
-
-//     // --- Send SMS if matched ---
-//     if (matchedFilter != null && matchedFilter.recipients.isNotEmpty) {
-//       print(' =================================== Forwarding SMS to: ${matchedFilter.recipients.join(", ")}');
-//       // bool allSent = true; // Can track overall success if needed
-
-//       for (final recipient in matchedFilter.recipients) {
-//         String status = 'Failed'; // Default to failed
-//         String? errorMessage;
-//         try {
-//           String forwardMessage = "Fwd from ${message.address ?? 'Unknown Sender'}:\n${message.body ?? '[Empty Body]'}";
-
-//           await telephony.sendSms(
-//             to: recipient,
-//             message: forwardMessage,
-//           );
-//           print(' =================================== Successfully forwarded to $recipient');
-//           status = 'Sent'; // Update status on success
-//         } catch (e) {
-//           // allSent = false;
-//           errorMessage = e.toString();
-//           print(' =================================== Error sending SMS to $recipient: $errorMessage');
-//         }
-
-//         // --- Log the attempt --- 
-//         await logForwardedSms(
-//             dbHelper,
-//             message,
-//             recipient,
-//             matchedFilter.id,
-//             status,
-//             errorMessage,
-//          );
-//       }
-//     } else {
-//       print(' =================================== No matching filter found or filter has no recipients.');
-//     }
-
-//   } catch (e) {
-//     print(' =================================== Error processing SMS: $e');
-//     // Consider logging this error as well, maybe with a special status
-//   }
-// }
-
-// // --- Logging Logic --- 
-// Future<void> logForwardedSms(
-//     DatabaseHelper dbHelper,
-//     SmsMessage originalMessage,
-//     String forwardedTo,
-//     String filterId,
-//     String status,
-//     String? errorMessage,
-//   ) async {
-
-//   print(' ===================================  =================================== Logging forwarded message: ${originalMessage.address} -> $forwardedTo (Status: $status)');
-//   final logEntry = ForwardedSmsLog(
-//     // id generated automatically by model
-//     filterId: filterId,
-//     originalSender: originalMessage.address ?? 'Unknown Sender',
-//     forwardedTo: forwardedTo,
-//     messageContent: originalMessage.body ?? '',
-//     dateTime: DateTime.now(), // Log time of forwarding attempt
-//     status: status,
-//     errorMessage: errorMessage,
-//   );
-//   try {
-//     await dbHelper.insertForwardedSmsLog(logEntry);
-//   } catch (e) {
-//      print(" =================================== Error inserting SMS log into database: $e =================================== ");
-//      // Decide how to handle DB insertion errors - maybe retry later?
-//   }
-// } 
+  print(' ===================================  =================================== Logging forwarded message: ${originalMessage.address} -> $forwardedTo (Status: $status)');
+  final logEntry = ForwardedSmsLog(
+    // id generated automatically by model
+    filterId: filterId,
+    originalSender: originalMessage.address ?? 'Unknown Sender',
+    forwardedTo: forwardedTo,
+    messageContent: originalMessage.body ?? '',
+    dateTime: DateTime.now(), // Log time of forwarding attempt
+    status: status,
+    errorMessage: errorMessage,
+  );
+  try {
+    await dbHelper.insertForwardedSmsLog(logEntry);
+  } catch (e) {
+     print(" =================================== Error inserting SMS log into database: $e =================================== ");
+     // Decide how to handle DB insertion errors - maybe retry later?
+  }
+} 
