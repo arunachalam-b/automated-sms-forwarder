@@ -1,8 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart'; // Needed for more permissions
 import 'screens/home_page.dart'; // Ensure this path is correct
+import 'services/background_service.dart'; // Import the service
 
-void main() {
+void main() async { // Make main async
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are initialized
+
+  // --- Request Permissions Crucial for Background Service ---
+  // It's better to ask upfront than rely solely on background requests
+  await _requestCrucialPermissions();
+
+  // --- Initialize Background Service ---
+  await initializeBackgroundService();
+
   runApp(const MyApp());
+}
+
+// Helper function to request necessary permissions
+Future<void> _requestCrucialPermissions() async {
+  // SMS Permissions (already requested by telephony, but good to ensure)
+  await Permission.sms.request();
+
+  // Phone State (for telephony state checks, etc.)
+  await Permission.phone.status.then((status) async {
+      if (!status.isGranted) await Permission.phone.request();
+  });
+
+  // Notification Permission (for Android 13+ Foreground Service Notification)
+  await Permission.notification.status.then((status) async {
+      if (!status.isGranted) await Permission.notification.request();
+  });
+
+  // Optional: Ignore Battery Optimizations
+  // This helps the service run reliably but requires user consent.
+  // await Permission.ignoreBatteryOptimizations.request();
+  // Consider explaining to the user why this is needed if you request it.
 }
 
 class MyApp extends StatelessWidget {

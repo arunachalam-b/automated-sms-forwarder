@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/forwarded_sms.dart'; // Adjust path if necessary
-import 'package:intl/intl.dart'; // For date formatting
+import '../models/forwarded_sms_log.dart'; // Use the log model
+import '../utils/database_helper.dart'; // Import DB Helper
+import 'package:intl/intl.dart';
 
 class ResultsTab extends StatefulWidget {
   const ResultsTab({super.key});
@@ -10,65 +11,117 @@ class ResultsTab extends StatefulWidget {
 }
 
 class _ResultsTabState extends State<ResultsTab> {
-  // Dummy data
-  final List<ForwardedSms> _forwardedSmsList = [
-    ForwardedSms(
-      contactName: 'Alice',
-      forwardedTo: '+1234567890',
-      messageContent: 'Meeting at 5 PM today.',
-      dateTime: DateTime.now().subtract(const Duration(hours: 1)),
-    ),
-    ForwardedSms(
-      contactName: 'Bob',
-      forwardedTo: '+0987654321',
-      messageContent: 'Can you pick up groceries?',
-      dateTime: DateTime.now().subtract(const Duration(hours: 3)),
-    ),
-    ForwardedSms(
-      contactName: 'Charlie',
-      forwardedTo: '+1122334455',
-      messageContent: 'Project update: Looks good!',
-      dateTime: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    ForwardedSms(
-      contactName: 'David (Unknown Number)',
-      forwardedTo: '+5566778899',
-      messageContent: 'Your verification code is 123456',
-      dateTime: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-    ForwardedSms(
-      contactName: 'Eve',
-      forwardedTo: '+9988776655',
-      messageContent: 'Happy Birthday! 🎉',
-      dateTime: DateTime.now().subtract(const Duration(days: 5)),
-    ),
-  ];
+  List<ForwardedSmsLog> _logs = [];
+  bool _isLoading = true;
+  final dbHelper = DatabaseHelper();
+  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd HH:mm');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogs();
+    // TODO: Add mechanism to refresh logs if app stays open and new logs are added by background service
+  }
+
+  Future<void> _loadLogs() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final loadedLogs = await dbHelper.getAllForwardedSmsLogs();
+      setState(() {
+        _logs = loadedLogs;
+        _isLoading = false;
+      });
+    } catch (e) {
+       print("Error loading logs: $e");
+       setState(() {
+        _isLoading = false;
+      });
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error loading results: ${e.toString()}')),
+        );
+    }
+  }
+
+  // --- Refresh Action --- (Optional but helpful)
+  Future<void> _refreshLogs() async {
+     print("Refreshing logs...");
+     await _loadLogs();
+     if(mounted){
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Results refreshed.'), duration: Duration(seconds: 1)),
+        );
+     }
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    if (_forwardedSmsList.isEmpty) {
+    return Scaffold(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildLogList(),
+       floatingActionButton: FloatingActionButton(
+         mini: true,
+         onPressed: _refreshLogs,
+         tooltip: 'Refresh Logs',
+         child: const Icon(Icons.refresh),
+       ), // Add refresh button
+    );
+  }
+
+  Widget _buildLogList() {
+    if (_logs.isEmpty) {
       return const Center(
-        child: Text('No forwarded SMS messages yet.'),
+        child: Text('No forwarded SMS messages logged yet.'),
       );
     }
 
     return ListView.builder(
-      itemCount: _forwardedSmsList.length,
+      itemCount: _logs.length,
       itemBuilder: (context, index) {
-        final item = _forwardedSmsList[index];
-        final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(item.dateTime);
+        final log = _logs[index];
+        final formattedDate = _dateFormat.format(log.dateTime);
 
         return ListTile(
-          leading: CircleAvatar(child: Text(item.contactName[0])), // First letter
-          title: Text('From: ${item.contactName}'),
+          leading: CircleAvatar(
+             // Show icon based on status
+             backgroundColor: log.status == 'Sent' ? Colors.green : Colors.redAccent,
+             child: Icon(
+                 log.status == 'Sent' ? Icons.check : Icons.error_outline,
+                 color: Colors.white,
+                 size: 20,
+             ),
+           ),
+          title: Text('From: ${log.originalSender} -> ${log.forwardedTo}'),
           subtitle: Text(
-            'Forwarded To: ${item.forwardedTo}\n'
-            '${item.messageContent}',
-            maxLines: 3,
+            log.messageContent,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: Text(formattedDate),
-          isThreeLine: true, // Allows more space for subtitle
+          trailing: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             crossAxisAlignment: CrossAxisAlignment.end,
+             children: [
+                Text(formattedDate.split(' ')[0]), // Date part
+                Text(formattedDate.split(' ')[1]), // Time part
+             ],
+          ),
+           isThreeLine: true,
+           // Optional: Show error on tap?
+           onTap: log.status == 'Failed' && log.errorMessage != null
+            ? () {
+                showDialog(
+                   context: context,
+                   builder: (_) => AlertDialog(
+                      title: const Text('Forwarding Error'),
+                      content: Text(log.errorMessage!),
+                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+                   ),
+                 );
+               }
+            : null,
         );
       },
     );
