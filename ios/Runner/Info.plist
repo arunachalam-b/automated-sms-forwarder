@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSContactsUsageDescription</key>
+    <string>This app needs access to contacts to select recipients for SMS forwarding.</string>
 </dict>
 </plist>

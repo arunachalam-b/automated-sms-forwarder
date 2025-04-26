@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import '../models/filter.dart';
 
 class FilterWizard extends StatefulWidget {
@@ -198,7 +199,7 @@ class _FilterWizardState extends State<FilterWizard> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0), // Align button slightly
                   child: ElevatedButton(
-                    onPressed: _addRecipient,
+                    onPressed: _addRecipientManual,
                     child: const Text('Add'),
                   ),
                 ),
@@ -210,7 +211,7 @@ class _FilterWizardState extends State<FilterWizard> {
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.contact_phone),
                 label: const Text('Select from Contacts'),
-                onPressed: _selectFromContacts, // Placeholder action
+                onPressed: _selectFromContacts,
               ),
             ),
             const SizedBox(height: 15),
@@ -240,15 +241,18 @@ class _FilterWizardState extends State<FilterWizard> {
     );
   }
 
-  void _addRecipient() {
+  void _addRecipientManual() {
     final number = _recipientController.text.trim();
+    _addRecipientToList(number);
+    _recipientController.clear();
+  }
+
+  void _addRecipientToList(String number) {
     if (number.isNotEmpty) {
-      // Basic check to prevent duplicates
       if (!_recipients.contains(number)) {
         setState(() {
           _recipients.add(number);
         });
-        _recipientController.clear();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$number is already added.')),
@@ -256,16 +260,43 @@ class _FilterWizardState extends State<FilterWizard> {
       }
     } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a phone number to add.')),
+          const SnackBar(content: Text('Please enter or select a valid phone number.')),
         );
     }
   }
 
-  void _selectFromContacts() {
-    // TODO: Implement contact selection using a plugin
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Contact selection not yet implemented.')),
-    );
+  void _selectFromContacts() async {
+    // 1. Request permission
+    if (!await FlutterContacts.requestPermission(readonly: true)) {
+      if (mounted) { // Check if the widget is still in the tree
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contact permission is required to select recipients.')),
+        );
+      }
+      return;
+    }
+
+    // 2. Pick contact
+    Contact? contact = await FlutterContacts.openExternalPick();
+
+    if (contact == null) return; // User cancelled picker
+
+    // 3. Get contact details (needed for phone numbers)
+    // Note: Can be slow on first load for a contact
+    contact = await FlutterContacts.getContact(contact.id);
+    if (contact == null || contact.phones.isEmpty) {
+       if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Selected contact has no phone numbers.')),
+          );
+       }
+       return;
+    }
+
+    // 4. Add the first phone number (or potentially offer choice later)
+    // Normalize to remove spaces/hyphens if needed, though flutter_contacts often does this
+    final firstNumber = contact.phones.first.number.replaceAll(RegExp(r'\s+|-|\(|\)'), '');
+    _addRecipientToList(firstNumber);
   }
 
   Widget _buildConditionsPage() {
