@@ -155,9 +155,11 @@ class FiltersTabState extends State<FiltersTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildFilterList(),
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildFilterList(),
+      ),
     );
   }
 
@@ -192,7 +194,7 @@ class FiltersTabState extends State<FiltersTab> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       itemCount: _filters.length,
       itemBuilder: (context, index) {
         final filter = _filters[index];

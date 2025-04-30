@@ -60,9 +60,11 @@ class _ResultsTabState extends State<ResultsTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildLogList(),
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildLogList(),
+      ),
        floatingActionButton: FloatingActionButton(
          mini: true,
          onPressed: _refreshLogs,
@@ -98,7 +100,7 @@ class _ResultsTabState extends State<ResultsTab> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       itemCount: _logs.length,
       itemBuilder: (context, index) {
         final log = _logs[index];

@@ -36,44 +36,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Auto SMS Forwarder',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          onTap: (index) {
-            // Optional: If you need to do something specific on tap besides changing the view
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 16,
-          ),
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.list_alt),
-              text: 'Results',
-            ),
-            Tab(
-              icon: Icon(Icons.filter_list),
-              text: 'Filters',
-            ),
-          ],
-        ),
-      ),
       body: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.background,
@@ -84,6 +46,55 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             const ResultsTab(),
             // Use the key here, associating it with the FiltersTab widget
             filters_tab.FiltersTab(key: filtersTabKey),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+        ),
+        child: TabBar(
+          controller: _tabController,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          indicator: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 3,
+              ),
+            ),
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Colors.grey,
+          padding: const EdgeInsets.only(top: 8),
+          tabs: const [
+            Tab(
+              icon: Icon(Icons.list_alt),
+              text: 'Results',
+            ),
+            Tab(
+              icon: Icon(Icons.filter_list),
+              text: 'Filters',
+            ),
           ],
         ),
       ),
