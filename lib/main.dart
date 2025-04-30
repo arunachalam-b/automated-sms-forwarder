@@ -11,17 +11,87 @@ void main() async {
   // Initialize background service
   await initializeBackgroundService();
 
-  runApp(const MyApp());
+  // Load saved theme mode
+  final prefs = await SharedPreferences.getInstance();
+  final savedThemeMode = prefs.getString('themeMode');
+  final initialThemeMode = savedThemeMode != null
+      ? ThemeMode.values.firstWhere(
+          (mode) => mode.toString() == savedThemeMode,
+          orElse: () => ThemeMode.system,
+        )
+      : ThemeMode.system;
+
+  runApp(MyApp(initialThemeMode: initialThemeMode));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  final ThemeMode initialThemeMode;
+
+  const MyApp({super.key, required this.initialThemeMode});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late ThemeMode _themeMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = widget.initialThemeMode;
+  }
+
+  void _handleThemeChanged(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Auto SMS Forwarder',
+      themeMode: _themeMode,
       theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF3498DB),
+          secondary: Color(0xFF3498DB),
+          surface: Colors.white,
+          background: Color(0xFFF5F5F5),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          elevation: 0,
+        ),
+        cardTheme: CardTheme(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3498DB),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF3498DB),
+            side: const BorderSide(color: Color(0xFF3498DB)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+      darkTheme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF1A2025),
@@ -60,13 +130,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const PermissionCheckScreen(),
+      home: PermissionCheckScreen(onThemeChanged: _handleThemeChanged, currentThemeMode: _themeMode),
     );
   }
 }
 
 class PermissionCheckScreen extends StatefulWidget {
-  const PermissionCheckScreen({super.key});
+  final Function(ThemeMode) onThemeChanged;
+  final ThemeMode currentThemeMode;
+
+  const PermissionCheckScreen({super.key, required this.onThemeChanged, required this.currentThemeMode});
 
   @override
   State<PermissionCheckScreen> createState() => _PermissionCheckScreenState();
@@ -121,6 +194,14 @@ class _PermissionCheckScreenState extends State<PermissionCheckScreen> {
       );
     }
 
-    return _showPermissionsScreen ? const PermissionsScreen() : const HomePage();
+    return _showPermissionsScreen 
+      ? PermissionsScreen(
+          onThemeChanged: widget.onThemeChanged,
+          currentThemeMode: widget.currentThemeMode,
+        )
+      : HomePage(
+          onThemeChanged: widget.onThemeChanged,
+          currentThemeMode: widget.currentThemeMode,
+        );
   }
 }

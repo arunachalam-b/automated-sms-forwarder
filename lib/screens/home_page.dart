@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import '../tabs/filters_tab.dart' as filters_tab;
 import '../tabs/results_tab.dart';
+import '../tabs/settings_tab.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final Function(ThemeMode) onThemeChanged;
+  final ThemeMode currentThemeMode;
+
+  const HomePage({
+    super.key,
+    required this.onThemeChanged,
+    required this.currentThemeMode,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -17,7 +25,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     // Add listener to update index when tab changes
     _tabController.addListener(() {
       setState(() {
@@ -46,6 +54,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             const ResultsTab(),
             // Use the key here, associating it with the FiltersTab widget
             filters_tab.FiltersTab(key: filtersTabKey),
+            SettingsTab(
+              onThemeChanged: widget.onThemeChanged,
+              currentThemeMode: widget.currentThemeMode,
+            ),
           ],
         ),
       ),
@@ -94,6 +106,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             Tab(
               icon: Icon(Icons.filter_list),
               text: 'Filters',
+            ),
+            Tab(
+              icon: Icon(Icons.settings),
+              text: 'Settings',
             ),
           ],
         ),
