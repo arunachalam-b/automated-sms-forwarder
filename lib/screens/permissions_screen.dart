@@ -1,6 +1,7 @@
 import 'package:auto_sms_2/screens/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
@@ -44,6 +45,19 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     setState(() {
       _permissionStatus[permission] = status.isGranted;
     });
+  }
+
+  Future<void> _navigateToHome() async {
+    if (_allPermissionsGranted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('hasSeenPermissionsScreen', true);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
+    }
   }
 
   @override
@@ -115,12 +129,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomePage()),
-                    );
-                  },
+                  onPressed: _navigateToHome,
                   child: const Text('Continue to App'),
                 ),
               ),
