@@ -37,7 +37,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Auto SMS Forwarder'),
+        title: const Text(
+          'Auto SMS Forwarder',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
           onTap: (index) {
@@ -46,19 +52,40 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               _currentIndex = index;
             });
           },
+          indicatorColor: Theme.of(context).colorScheme.primary,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
+          ),
           tabs: const [
-            Tab(icon: Icon(Icons.list_alt), text: 'Results'), // Added icons
-            Tab(icon: Icon(Icons.filter_list), text: 'Filters'), // Added icons
+            Tab(
+              icon: Icon(Icons.list_alt),
+              text: 'Results',
+            ),
+            Tab(
+              icon: Icon(Icons.filter_list),
+              text: 'Filters',
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          const ResultsTab(),
-          // Use the key here, associating it with the FiltersTab widget
-          filters_tab.FiltersTab(key: filtersTabKey),
-        ],
+      body: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.background,
+        ),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            const ResultsTab(),
+            // Use the key here, associating it with the FiltersTab widget
+            filters_tab.FiltersTab(key: filtersTabKey),
+          ],
+        ),
       ),
       // Conditionally display FAB based on the current tab index
       floatingActionButton: _currentIndex == 1 // Show only on Filters tab (index 1)
@@ -66,7 +93,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               // Directly access the method on the state via the key
               onPressed: () => filtersTabKey.currentState?.openAddFilterDialog(),
               tooltip: 'Add Filter',
-              child: const Icon(Icons.add),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: const Icon(Icons.add, color: Colors.white),
             )
           : null, // Don't show FAB on other tabs
     );

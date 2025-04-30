@@ -22,8 +22,43 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Auto SMS Forwarder',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF1A2025),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF3498DB),
+          secondary: Color(0xFF3498DB),
+          surface: Color(0xFF2A3139),
+          background: Color(0xFF1A2025),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF2A3139),
+          elevation: 0,
+        ),
+        cardTheme: CardTheme(
+          color: const Color(0xFF2A3139),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3498DB),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF3498DB),
+            side: const BorderSide(color: Color(0xFF3498DB)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
       ),
       home: const PermissionCheckScreen(),
     );

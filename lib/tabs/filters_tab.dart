@@ -35,11 +35,12 @@ class FiltersTabState extends State<FiltersTab> {
       print("Error loading filters: $e");
       setState(() {
         _isLoading = false;
-        // Optionally show an error message to the user
       });
-       ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Error loading filters: ${e.toString()}')),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading filters: ${e.toString()}')),
         );
+      }
     }
   }
 
@@ -101,46 +102,59 @@ class FiltersTabState extends State<FiltersTab> {
   }
 
   Future<void> openAddFilterDialog() async {
-    final newFilter = await showDialog<Filter>(
+    final result = await showDialog<Filter>(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const FilterWizard();
-      },
+      builder: (BuildContext context) => const FilterWizard(),
     );
-    if (newFilter != null) {
-      _addFilter(newFilter);
+
+    if (result != null) {
+      try {
+        await dbHelper.insertFilter(result);
+        await _loadFilters();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Filter added successfully!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error adding filter: ${e.toString()}')),
+          );
+        }
+      }
     }
   }
 
   Future<void> openEditFilterDialog(Filter filter) async {
-    // Pass a clone to the wizard to avoid modifying the original in case of cancel
-    final filterClone = Filter(
-      id: filter.id,
-      recipients: List.from(filter.recipients),
-      conditions: filter.conditions.map((c) => FilterCondition(
-          type: c.type,
-          value: c.value,
-          caseSensitive: c.caseSensitive
-        )).toList(),
+    final result = await showDialog<Filter>(
+      context: context,
+      builder: (BuildContext context) => FilterWizard(initialFilter: filter),
     );
 
-    final editedFilter = await showDialog<Filter>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return FilterWizard(initialFilter: filterClone);
-      },
-    );
-    if (editedFilter != null) {
-      _editFilter(filter, editedFilter); // Pass original filter for finding index
+    if (result != null) {
+      try {
+        await dbHelper.updateFilter(result);
+        await _loadFilters();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Filter updated successfully!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating filter: ${e.toString()}')),
+          );
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Show loading indicator or the list
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildFilterList(),
@@ -149,36 +163,159 @@ class FiltersTabState extends State<FiltersTab> {
 
   Widget _buildFilterList() {
     if (_filters.isEmpty) {
-      return const Center(
-        child: Text('No filters created yet. Tap the + button to add one.'),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.filter_list_outlined,
+              size: 64,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No filters added yet.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: openAddFilterDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Your First Filter'),
+            ),
+          ],
+        ),
       );
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: _filters.length,
       itemBuilder: (context, index) {
         final filter = _filters[index];
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: ListTile(
-            title: Text('Forward to: ${filter.recipients.join(", ")}'),
-            subtitle: Text('Conditions: ${filter.conditions.length}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () => openEditFilterDialog(filter),
-                  tooltip: 'Edit Filter',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _confirmDeleteFilter(filter.id),
-                  tooltip: 'Delete Filter',
-                ),
-              ],
-            ),
+          margin: const EdgeInsets.only(bottom: 12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
             onTap: () => openEditFilterDialog(filter),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        ),
+                        child: Icon(
+                          Icons.filter_list,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Filter ${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '${filter.recipients.length} recipient(s)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        color: Colors.red[300],
+                        onPressed: () => _confirmDeleteFilter(filter.id),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Recipients:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: filter.recipients.map((recipient) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          recipient,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Conditions:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: filter.conditions.map((condition) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              condition.type == FilterConditionType.sender
+                                  ? Icons.person_outline
+                                  : Icons.message_outlined,
+                              size: 16,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${condition.type.name}: ${condition.value}',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -195,16 +332,14 @@ class FiltersTabState extends State<FiltersTab> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Delete'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog first
-                _deleteFilter(filterId); // Then call the delete method
+                Navigator.of(context).pop();
+                _deleteFilter(filterId);
               },
             ),
           ],

@@ -161,7 +161,17 @@ class _FilterWizardState extends State<FilterWizard> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.initialFilter == null ? 'Add New Filter' : 'Edit Filter'),
+      title: Text(
+        widget.initialFilter == null ? 'Add New Filter' : 'Edit Filter',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       scrollable: true,
       content: SizedBox(
         width: double.maxFinite,
@@ -172,7 +182,6 @@ class _FilterWizardState extends State<FilterWizard> {
           children: [
             _buildRecipientsPage(),
             _buildConditionsPage(),
-            // Removed _buildSimSelectionPage()
           ],
         ),
       ),
@@ -181,19 +190,16 @@ class _FilterWizardState extends State<FilterWizard> {
           child: const Text('Cancel'),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        // Show Back button only on page 1
         if (_currentPage > 0)
           TextButton(
             child: const Text('Back'),
             onPressed: _previousPage,
           ),
-        // Show Next button only on page 0
         if (_currentPage < 1)
           ElevatedButton(
             child: const Text('Next'),
             onPressed: _nextPage,
           )
-        // Show Submit button only on page 1 (the last page)
         else
           ElevatedButton(
             child: const Text('Submit'),
@@ -205,7 +211,6 @@ class _FilterWizardState extends State<FilterWizard> {
 
   // --- Page Builders ---
 
-  // _buildRecipientsPage remains the same
   Widget _buildRecipientsPage() {
     return Form(
       key: _formKeys[0],
@@ -214,34 +219,31 @@ class _FilterWizardState extends State<FilterWizard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Forward SMS To:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _recipientController,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter Phone Number',
-                      border: OutlineInputBorder(),
-                      hintText: '+1234567890',
-                    ),
-                    keyboardType: TextInputType.phone,
-                    validator: (value) => null,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: ElevatedButton(
-                    onPressed: _addRecipientManual,
-                    child: const Text('Add'),
-                  ),
-                ),
-              ],
+            const Text(
+              'Forward SMS To:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _recipientController,
+              decoration: InputDecoration(
+                labelText: 'Enter Phone Number',
+                hintText: '+1234567890',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _addRecipientManual,
+                  tooltip: 'Add Recipient',
+                ),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
             Center(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.contact_phone),
@@ -249,32 +251,65 @@ class _FilterWizardState extends State<FilterWizard> {
                 onPressed: _selectRecipientFromContacts,
               ),
             ),
-            const SizedBox(height: 15),
-            const Text('Recipients:', style: TextStyle(fontWeight: FontWeight.w500)),
-            const SizedBox(height: 5),
+            const SizedBox(height: 24),
+            const Text(
+              'Recipients:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
             if (_recipients.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(' No recipients added yet.', style: TextStyle(fontStyle: FontStyle.italic)),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'No recipients added yet',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
               )
             else
               Container(
-                constraints: const BoxConstraints(maxHeight: 150),
-                child: SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    children: _recipients.map((recipient) {
-                      return Chip(
-                        label: Text(recipient),
-                        onDeleted: () {
-                          setState(() {
-                            _recipients.remove(recipient);
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: _recipients.map((recipient) {
+                    return Chip(
+                      label: Text(recipient),
+                      deleteIcon: const Icon(Icons.close, size: 18),
+                      onDeleted: () {
+                        setState(() {
+                          _recipients.remove(recipient);
+                        });
+                      },
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      side: BorderSide.none,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
           ],
@@ -283,7 +318,6 @@ class _FilterWizardState extends State<FilterWizard> {
     );
   }
 
-  // _buildConditionsPage remains the same
   Widget _buildConditionsPage() {
     return Form(
       key: _formKeys[1],
@@ -293,71 +327,81 @@ class _FilterWizardState extends State<FilterWizard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filter Conditions (SMS must match ALL):', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
-            Card(
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 15),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Add a new condition:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<custom_filter.FilterConditionType>(
-                      value: _newConditionType,
-                      decoration: const InputDecoration(
-                        labelText: 'Condition Type',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: custom_filter.FilterConditionType.values.map((type) {
-                        return DropdownMenuItem(
-                          value: type,
-                          child: Text(type.name[0].toUpperCase() + type.name.substring(1)),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _newConditionType = value;
-                            if (value != custom_filter.FilterConditionType.content) {
-                              _newConditionCaseSensitive = false;
-                            }
-                            _conditionValueController.clear();
-                          });
-                        }
-                      },
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Add a new condition:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _conditionValueController,
-                      decoration: InputDecoration(
-                        labelText: _newConditionType == custom_filter.FilterConditionType.sender
-                            ? 'Sender Name/Number'
-                            : 'Text Content',
-                        border: const OutlineInputBorder(),
-                        hintText: _newConditionType == custom_filter.FilterConditionType.sender
-                            ? 'e.g., BankName or +1...`'
-                            : 'e.g., OTP or Urgent',
-                        suffixIcon: _newConditionType == custom_filter.FilterConditionType.sender
-                            ? IconButton(
-                                icon: const Icon(Icons.contact_phone_outlined),
-                                tooltip: 'Select Sender from Contacts',
-                                onPressed: _selectSenderFromContacts,
-                              )
-                            : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<custom_filter.FilterConditionType>(
+                    value: _newConditionType,
+                    decoration: InputDecoration(
+                      labelText: 'Condition Type',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a value for the condition';
-                        }
-                        return null;
-                      },
                     ),
-                    const SizedBox(height: 5),
-                    if (_newConditionType == custom_filter.FilterConditionType.content)
-                      CheckboxListTile(
+                    items: custom_filter.FilterConditionType.values.map((type) {
+                      return DropdownMenuItem(
+                        value: type,
+                        child: Text(type.name[0].toUpperCase() + type.name.substring(1)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _newConditionType = value;
+                          if (value != custom_filter.FilterConditionType.content) {
+                            _newConditionCaseSensitive = false;
+                          }
+                          _conditionValueController.clear();
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _conditionValueController,
+                    decoration: InputDecoration(
+                      labelText: _newConditionType == custom_filter.FilterConditionType.sender
+                          ? 'Sender Name/Number'
+                          : 'Text Content',
+                      hintText: _newConditionType == custom_filter.FilterConditionType.sender
+                          ? 'e.g., BankName or +1...'
+                          : 'e.g., OTP or Urgent',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _newConditionType == custom_filter.FilterConditionType.sender
+                          ? IconButton(
+                              icon: const Icon(Icons.contact_phone_outlined),
+                              tooltip: 'Select Sender from Contacts',
+                              onPressed: _selectSenderFromContacts,
+                            )
+                          : null,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a value for the condition';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (_newConditionType == custom_filter.FilterConditionType.content)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: CheckboxListTile(
                         title: const Text('Case Sensitive'),
                         value: _newConditionCaseSensitive,
                         onChanged: (bool? value) {
@@ -368,61 +412,89 @@ class _FilterWizardState extends State<FilterWizard> {
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                       ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.add_circle_outline),
-                        label: const Text('Add Condition'),
-                        onPressed: _addCondition,
+                    ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.add_circle_outline),
+                      label: const Text('Add Condition'),
+                      onPressed: _addCondition,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Added Conditions:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_conditions.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'No conditions added yet',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const Text('Added Conditions:', style: TextStyle(fontWeight: FontWeight.w500)),
-            const SizedBox(height: 5),
-            if (_conditions.isEmpty)
-              const Padding(
-                 padding: EdgeInsets.symmetric(vertical: 8.0),
-                 child: Text(' No conditions added yet.', style: TextStyle(fontStyle: FontStyle.italic)),
               )
             else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _conditions.length,
-                itemBuilder: (context, index) {
-                  final condition = _conditions[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: ListTile(
-                      leading: Icon(condition.type == custom_filter.FilterConditionType.sender
-                          ? Icons.person_outline
-                          : Icons.text_fields),
-                      title: Text('${condition.type.name[0].toUpperCase()}${condition.type.name.substring(1)}: ${condition.value}'),
-                      subtitle: condition.type == custom_filter.FilterConditionType.content
-                          ? Text('Case Sensitive: ${condition.caseSensitive ? 'Yes' : 'No'}')
-                          : null,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                        tooltip: 'Remove Condition',
-                        onPressed: () => _deleteCondition(index),
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: _conditions.map((condition) {
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: Icon(
+                          condition.type == custom_filter.FilterConditionType.sender
+                              ? Icons.person_outline
+                              : Icons.text_fields,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          '${condition.type.name[0].toUpperCase()}${condition.type.name.substring(1)}: ${condition.value}',
+                        ),
+                        subtitle: condition.type == custom_filter.FilterConditionType.content
+                            ? Text('Case Sensitive: ${condition.caseSensitive ? 'Yes' : 'No'}')
+                            : null,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => _deleteCondition(_conditions.indexOf(condition)),
+                        ),
                       ),
-                      dense: true,
-                    ),
-                  );
-                },
+                    );
+                  }).toList(),
+                ),
               ),
           ],
         ),
       ),
     );
   }
-
-  // Removed _buildSimSelectionPage method
-  // Widget _buildSimSelectionPage() { ... }
-
 
   // --- Helper Methods --- (Keep recipient/condition helpers)
 
