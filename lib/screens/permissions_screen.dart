@@ -18,9 +18,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   };
 
   final Map<Permission, String> _permissionDescriptions = {
-    Permission.sms: 'We need SMS permission to read incoming messages and forward them based on your filters.',
-    Permission.phone: 'Phone permission is required to check the device state and ensure proper SMS handling.',
-    Permission.notification: 'Notification permission is needed to show you when messages are forwarded and keep the service running in the background.',
+    Permission.sms: 'So you can read and forward SMS messages',
+    Permission.phone: 'To check device state and handle SMS properly',
+    Permission.notification: 'To keep you informed about forwarded messages',
   };
 
   bool get _allPermissionsGranted => _permissionStatus.values.every((status) => status);
@@ -60,80 +60,150 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     }
   }
 
+  String _getPermissionTitle(Permission permission) {
+    switch (permission) {
+      case Permission.sms:
+        return 'SMS';
+      case Permission.phone:
+        return 'Phone';
+      case Permission.notification:
+        return 'Notifications';
+      default:
+        return permission.toString().split('.').last;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Permissions Required'),
-        automaticallyImplyLeading: false,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Auto SMS Forwarder needs the following permissions to function properly:',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _permissionStatus.length,
-                itemBuilder: (context, index) {
-                  final permission = _permissionStatus.keys.elementAt(index);
-                  final isGranted = _permissionStatus[permission]!;
-                  final description = _permissionDescriptions[permission]!;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                isGranted ? Icons.check_circle : Icons.error_outline,
-                                color: isGranted ? Colors.green : Colors.orange,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  permission.toString().split('.').last,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(description),
-                          const SizedBox(height: 12),
-                          if (!isGranted)
-                            ElevatedButton(
-                              onPressed: () => _requestPermission(permission),
-                              child: const Text('Grant Permission'),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (_allPermissionsGranted)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _navigateToHome,
-                  child: const Text('Continue to App'),
+      backgroundColor: const Color(0xFF1A2025), // Dark background color
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 48),
+              // Top icon
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF3498DB), // Blue color for the circle
+                ),
+                child: const Icon(
+                  Icons.security,
+                  size: 40,
+                  color: Colors.white,
                 ),
               ),
-          ],
+              const SizedBox(height: 24),
+              // Title
+              const Text(
+                "Let's get rolling!",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 48),
+              // Permissions list
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _permissionStatus.length,
+                  itemBuilder: (context, index) {
+                    final permission = _permissionStatus.keys.elementAt(index);
+                    final isGranted = _permissionStatus[permission]!;
+                    final description = _permissionDescriptions[permission]!;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: isGranted ? null : () => _requestPermission(permission),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A3139),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isGranted ? Colors.green : Colors.grey[800],
+                                  ),
+                                  child: Icon(
+                                    isGranted ? Icons.check : Icons.lock_outline,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _getPermissionTitle(permission),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        description,
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Bottom button
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _allPermissionsGranted ? _navigateToHome : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3498DB),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      disabledBackgroundColor: Colors.grey[800],
+                    ),
+                    child: const Text(
+                      'Finish',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
