@@ -33,28 +33,12 @@ jobs:
           mkdir -p android/app
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
 
-      - name: Update signingConfig in build.gradle
+      - name: Create key.properties
         run: |
-          sed -i '/signingConfig = signingConfigs.getByName("debug")/d' android/app/build.gradle.kts
-          cat << EOF >> android/app/build.gradle.kts
-          
-          signingConfigs {
-              create("release") {
-                  storeFile = file("upload-keystore.jks")
-                  storePassword = "${{ secrets.STORE_PASSWORD }}"
-                  keyAlias = "${{ secrets.KEY_ALIAS }}"
-                  keyPassword = "${{ secrets.KEY_PASSWORD }}"
-              }
-          }
-          
-          android {
-              buildTypes {
-                  getByName("release") {
-                      signingConfig = signingConfigs.getByName("release")
-                  }
-              }
-          }
-          EOF
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=../app/upload-keystore.jks" >> android/key.properties
 
       - name: Build APK
         run: flutter build apk --release
