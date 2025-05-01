@@ -1,15 +1,30 @@
+import 'package:auto_sms_2/services/sms_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_page.dart';
 import 'screens/permissions_screen.dart';
 import 'services/background_service.dart';
+import 'package:another_telephony/telephony.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize background service
   await initializeBackgroundService();
+
+  // Register the callback handler for background messages
+  // This MUST be done before any SMS handling is attempted
+  final telephony = Telephony.instance;
+  telephony.listenIncomingSms(
+    onNewMessage: (SmsMessage message) {
+      // This function will be called when the app is in the foreground
+      print('[Main] Received SMS in foreground: $message');
+      backgroundMessageHandler(message);
+    },
+    onBackgroundMessage: backgroundMessageHandler,
+    listenInBackground: true,
+  );
 
   // Load saved theme mode
   final prefs = await SharedPreferences.getInstance();
