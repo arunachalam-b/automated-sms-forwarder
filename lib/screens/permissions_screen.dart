@@ -20,13 +20,11 @@ class PermissionsScreen extends StatefulWidget {
 class _PermissionsScreenState extends State<PermissionsScreen> {
   final Map<Permission, bool> _permissionStatus = {
     Permission.sms: false,
-    Permission.phone: false,
     Permission.notification: false,
   };
 
   final Map<Permission, String> _permissionDescriptions = {
     Permission.sms: 'So you can read and forward SMS messages',
-    Permission.phone: 'To check device state and handle SMS properly',
     Permission.notification: 'To keep you informed about forwarded messages',
   };
 
@@ -76,8 +74,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     switch (permission) {
       case Permission.sms:
         return 'SMS';
-      case Permission.phone:
-        return 'Phone';
       case Permission.notification:
         return 'Notifications';
       default:
@@ -220,4 +216,4 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       ),
     );
   }
-} 
+}
