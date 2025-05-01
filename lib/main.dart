@@ -177,7 +177,6 @@ class _PermissionCheckScreenState extends State<PermissionCheckScreen> {
     // Check all required permissions
     final permissions = [
       Permission.sms,
-      Permission.phone,
       Permission.notification,
     ];
 
@@ -190,12 +189,13 @@ class _PermissionCheckScreenState extends State<PermissionCheckScreen> {
       }
     }
 
+    if (allGranted && !hasSeenPermissionsScreen) {
+      await prefs.setBool('hasSeenPermissionsScreen', true);
+    }
+
     setState(() {
       _isLoading = false;
-      // Show permissions screen if:
-      // 1. User hasn't seen it before, OR
-      // 2. Not all permissions are granted
-      _showPermissionsScreen = !hasSeenPermissionsScreen || !allGranted;
+      _showPermissionsScreen = !allGranted;
     });
   }
 
