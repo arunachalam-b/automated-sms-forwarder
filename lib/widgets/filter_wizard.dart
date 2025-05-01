@@ -380,6 +380,12 @@ class _FilterWizardState extends State<FilterWizard> {
                       hintText: _newConditionType == custom_filter.FilterConditionType.sender
                           ? 'e.g., BankName or +1...'
                           : 'e.g., OTP or Urgent',
+                      helperText: _newConditionType == custom_filter.FilterConditionType.content && !_newConditionCaseSensitive
+                          ? 'Content checks are case insensitive'
+                          : null,
+                      helperStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
