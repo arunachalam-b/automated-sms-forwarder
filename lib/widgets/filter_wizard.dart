@@ -398,21 +398,6 @@ class _FilterWizardState extends State<FilterWizard> {
                       return null;
                     },
                   ),
-                  if (_newConditionType == custom_filter.FilterConditionType.content)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: CheckboxListTile(
-                        title: const Text('Case Sensitive'),
-                        value: _newConditionCaseSensitive,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            _newConditionCaseSensitive = value ?? false;
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
                   const SizedBox(height: 16),
                   Center(
                     child: ElevatedButton.icon(
