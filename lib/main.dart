@@ -1,40 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart'; // Needed for more permissions
 import 'screens/home_page.dart'; // Ensure this path is correct
+import 'screens/permissions_page.dart'; // Import permissions page
 import 'services/background_service.dart'; // Import the service
+import 'utils/permission_manager.dart'; // Import permission manager
+import 'package:another_telephony/telephony.dart';
+import 'services/sms_handler.dart'; // Import for background handler registration
 
 void main() async { // Make main async
   WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are initialized
 
-  // --- Request Permissions Crucial for Background Service ---
-  // It's better to ask upfront than rely solely on background requests
-  await _requestCrucialPermissions();
+  // Register the callback handler for background messages
+  // This MUST be done before any SMS handling is attempted
+  final telephony = Telephony.instance;
+  telephony.listenIncomingSms(
+    onNewMessage: (SmsMessage message) {
+      // This function will be called when the app is in the foreground
+    },
+    onBackgroundMessage: backgroundMessageHandler,
+    listenInBackground: true,
+  );
 
   // --- Initialize Background Service ---
+  // This needs to be done early regardless of permissions
   await initializeBackgroundService();
 
   runApp(const MyApp());
-}
-
-// Helper function to request necessary permissions
-Future<void> _requestCrucialPermissions() async {
-  // SMS Permissions (already requested by telephony, but good to ensure)
-  await Permission.sms.request();
-
-  // Phone State (for telephony state checks, etc.)
-  await Permission.phone.status.then((status) async {
-      if (!status.isGranted) await Permission.phone.request();
-  });
-
-  // Notification Permission (for Android 13+ Foreground Service Notification)
-  await Permission.notification.status.then((status) async {
-      if (!status.isGranted) await Permission.notification.request();
-  });
-
-  // Optional: Ignore Battery Optimizations
-  // This helps the service run reliably but requires user consent.
-  // await Permission.ignoreBatteryOptimizations.request();
-  // Consider explaining to the user why this is needed if you request it.
 }
 
 class MyApp extends StatelessWidget {
@@ -49,8 +39,54 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue, // You can change the theme color
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const InitialScreen(),
     );
+  }
+}
+
+// This widget decides whether to show the permissions page or home page
+class InitialScreen extends StatefulWidget {
+  const InitialScreen({super.key});
+
+  @override
+  State<InitialScreen> createState() => _InitialScreenState();
+}
+
+class _InitialScreenState extends State<InitialScreen> {
+  bool _isLoading = true;
+  bool _showPermissionsPage = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    // Check if all permissions are granted (using our permission manager)
+    final allPermissionsGranted = await PermissionManager.areAllPermissionsGranted();
+    
+    setState(() {
+      _showPermissionsPage = !allPermissionsGranted;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_showPermissionsPage) {
+      return const PermissionsPage();
+    } else {
+      return const HomePage();
+    }
   }
 }
 
