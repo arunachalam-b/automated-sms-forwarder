@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.auto_sms_2"
+    namespace = "com.sms_forwarder"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.auto_sms_2"
+        applicationId = "com.sms_forwarder"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
