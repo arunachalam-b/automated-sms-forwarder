@@ -20,7 +20,7 @@ class PermissionsScreen extends StatefulWidget {
   State<PermissionsScreen> createState() => _PermissionsScreenState();
 }
 
-class _PermissionsScreenState extends State<PermissionsScreen> {
+class _PermissionsScreenState extends State<PermissionsScreen> with TickerProviderStateMixin {
   final Map<Permission, bool> _permissionStatus = {
     Permission.sms: false,
     Permission.notification: false,
@@ -36,12 +36,40 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
 
   bool get _allPermissionsGranted => _permissionStatus.values.every((status) => status);
   bool get _canProceed => _allPermissionsGranted && (_termsAccepted || _hasAcceptedTermsBefore);
+  
+  // Animation controller for pulsating animation
+  late AnimationController _animationController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
     _checkTermsAcceptance();
+    
+    // Initialize animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+    
+    // Show the info dialog after a short delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showInfoDialog();
+    });
+  }
+  
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkTermsAcceptance() async {
@@ -138,6 +166,86 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     }
   }
 
+  // Show a dialog explaining what the user needs to do
+  Future<void> _showInfoDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2A3139),
+          title: const Text(
+            "Grant Permissions",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "To use this app, you need to:",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildInfoItem(Icons.message, "Grant SMS permission"),
+              _buildInfoItem(Icons.notifications, "Allow notifications"),
+              const SizedBox(height: 12),
+              const Text(
+                "Tap the yellow 'ENABLE' buttons to grant permissions.",
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                "GOT IT",
+                style: TextStyle(
+                  color: Color(0xFF3498DB),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: Colors.amber,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,6 +281,21 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 ),
               ),
               const SizedBox(height: 48),
+              // Add info message above permissions list
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  _allPermissionsGranted 
+                      ? "All permissions granted! ✓" 
+                      : "Tap on the permissions below to grant access",
+                  style: TextStyle(
+                    color: _allPermissionsGranted ? Colors.green : Colors.amber,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
               // Permissions list
               Expanded(
                 child: ListView.builder(
@@ -184,11 +307,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: isGranted ? null : () => _requestPermission(permission),
-                          child: Container(
+                      child: isGranted
+                        ? Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: const Color(0xFF2A3139),
@@ -198,12 +318,12 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isGranted ? Colors.green : Colors.grey[800],
+                                    color: Colors.green,
                                   ),
-                                  child: Icon(
-                                    isGranted ? Icons.check : Icons.lock_outline,
+                                  child: const Icon(
+                                    Icons.check,
                                     color: Colors.white,
                                     size: 20,
                                   ),
@@ -234,9 +354,78 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                                 ),
                               ],
                             ),
+                          )
+                        : ScaleTransition(
+                            scale: _pulseAnimation,
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A3139),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.amber,
+                                  width: 2,
+                                ),
+                              ),
+                              child: InkWell(
+                                onTap: () => _requestPermission(permission),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.grey[800],
+                                      ),
+                                      child: const Icon(
+                                        Icons.lock_outline,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _getPermissionTitle(permission),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            description,
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => _requestPermission(permission),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.amber,
+                                        foregroundColor: Colors.black,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        "Enable",
+                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                     );
                   },
                 ),
