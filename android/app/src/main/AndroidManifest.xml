@@ -3,12 +3,10 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Required for flutter_background_service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" /> <!-- Required for Android 14+ -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" /> <!-- Required for Android 14+ -->
 
     <!-- Optional but Recommended for reliability -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -47,7 +45,7 @@
             android:value="2" />
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="dataSync|phoneCall" />
+            android:foregroundServiceType="dataSync" />
         <receiver android:name="com.shounakmulay.telephony.sms.IncomingSmsReceiver"
 		    android:permission="android.permission.BROADCAST_SMS" android:exported="true">
 		    <intent-filter>
