@@ -26,6 +26,11 @@ const String notificationContent = 'SMS forwarding service is running';
 const String initialNotificationTitle = 'Auto SMS Service';
 const String stopServiceAction = 'stopService';
 
+// Forwarding notification constants
+const String forwardingNotificationChannelId = 'sms_forwarding_channel';
+const String forwardingNotificationChannelName = 'SMS Forwarding';
+const String forwardingNotificationDescription = 'Notifications about forwarded messages';
+
 // Add a global variable to track service initialization attempts
 int _serviceInitializationAttempts = 0;
 const int _maxServiceInitializationAttempts = 2;
@@ -45,12 +50,23 @@ Future<void> initializeBackgroundService() async {
     
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     
+    // Register the main service channel
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(const AndroidNotificationChannel(
       notificationChannelId,
       notificationChannelName,
       description: notificationDescription,
+      importance: Importance.high,
+    ));
+    
+    // Also register the SMS forwarding notification channel 
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+      forwardingNotificationChannelId,
+      forwardingNotificationChannelName,
+      description: forwardingNotificationDescription,
       importance: Importance.high,
     ));
   }

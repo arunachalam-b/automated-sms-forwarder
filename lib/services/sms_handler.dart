@@ -2,6 +2,8 @@ import 'package:another_telephony/telephony.dart';
 import '../models/filter.dart' as custom_filter;
 import '../utils/database_helper.dart';
 import '../models/forwarded_sms_log.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'background_service.dart'; // Import to access shared constants
 
 // Root level annotated function for the background message handler
 @pragma('vm:entry-point')
@@ -67,6 +69,8 @@ Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Tel
     }
     if (matchedFilter != null && matchedFilter.recipients.isNotEmpty) {
       print('[ProcessSMS] Forwarding SMS to: ${matchedFilter.recipients.join(", ")}');
+      List<String> successfulRecipients = [];
+      
       for (final recipient in matchedFilter.recipients) {
         String status = 'Failed';
         String? errorMessage;
@@ -75,17 +79,74 @@ Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Tel
           await telephony.sendSms(to: recipient, message: forwardMessage);
           print('[ProcessSMS] Successfully forwarded to $recipient');
           status = 'Sent';
+          successfulRecipients.add(recipient);
         } catch (e) {
           errorMessage = e.toString();
           print('[ProcessSMS] Error sending SMS to $recipient: $errorMessage');
         }
         await logForwardedSms(dbHelper, message, recipient, matchedFilter.id, status, errorMessage);
       }
+      
+      // Show notification with the list of recipients
+      if (successfulRecipients.isNotEmpty) {
+        await showForwardingNotification(
+          sender: message.address ?? 'Unknown',
+          recipients: successfulRecipients,
+        );
+      }
     } else {
       print('[ProcessSMS] No matching filter found or filter has no recipients.');
     }
   } catch (e) {
     print('[ProcessSMS] Error processing SMS: $e');
+  }
+}
+
+// Show notification with forwarded SMS details
+Future<void> showForwardingNotification({
+  required String sender,
+  required List<String> recipients,
+}) async {
+  try {
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = 
+        FlutterLocalNotificationsPlugin();
+    
+    // Ensure the channel is created
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+      forwardingNotificationChannelId,
+      forwardingNotificationChannelName,
+      description: forwardingNotificationDescription,
+      importance: Importance.high,
+    ));
+    
+    // Format recipients for display
+    final recipientsText = recipients.join(', ');
+    
+    // Show the notification
+    await flutterLocalNotificationsPlugin.show(
+      // Use a unique ID based on current time to ensure multiple notifications can be shown
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'SMS Forwarded',
+      'From $sender to: $recipientsText',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          forwardingNotificationChannelId,
+          forwardingNotificationChannelName,
+          channelDescription: forwardingNotificationDescription,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(
+            'From $sender\n\nForwarded to:\n$recipientsText',
+          ),
+        ),
+      ),
+    );
+    
+    print('[Notification] Displayed forwarding notification');
+  } catch (e) {
+    print('[Notification] Failed to show notification: $e');
   }
 }
 
