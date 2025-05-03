@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../screens/webview_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 
 class SettingsTab extends StatefulWidget {
@@ -30,6 +30,17 @@ class _SettingsTabState extends State<SettingsTab> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('themeMode', mode.toString());
     widget.onThemeChanged(mode);
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $url')),
+        );
+      }
+    }
   }
 
   @override
@@ -128,6 +139,50 @@ class _SettingsTabState extends State<SettingsTab> {
                             color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                           ),
                           child: Icon(
+                            Icons.info_outline,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          AppStrings.about,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(AppStrings.viewSourceCode),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        _launchUrl(AppUrls.githubRepo);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          ),
+                          child: Icon(
                             Icons.description_outlined,
                             color: Theme.of(context).colorScheme.primary,
                             size: 20,
@@ -149,15 +204,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       title: Text(AppStrings.termsAndConditions),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => WebViewScreen(
-                              url: AppUrls.termsAndConditions,
-                              title: AppStrings.termsAndConditions,
-                            ),
-                          ),
-                        );
+                        _launchUrl(AppUrls.termsAndConditions);
                       },
                     ),
                     ListTile(
@@ -165,15 +212,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       title: Text(AppStrings.privacyPolicy),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => WebViewScreen(
-                              url: AppUrls.privacyPolicy,
-                              title: AppStrings.privacyPolicy,
-                            ),
-                          ),
-                        );
+                        _launchUrl(AppUrls.privacyPolicy);
                       },
                     ),
                   ],
