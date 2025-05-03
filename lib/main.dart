@@ -7,14 +7,12 @@ import 'screens/permissions_screen.dart';
 import 'services/background_service.dart';
 import 'package:another_telephony/telephony.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
+// Global function that can be called after permissions are granted
+Future<void> initializeServices() async {
   // Initialize background service
   await initializeBackgroundService();
 
   // Register the callback handler for background messages
-  // This MUST be done before any SMS handling is attempted
   final telephony = Telephony.instance;
   telephony.listenIncomingSms(
     onNewMessage: (SmsMessage message) {
@@ -25,7 +23,14 @@ void main() async {
     onBackgroundMessage: backgroundMessageHandler,
     listenInBackground: true,
   );
+}
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Don't initialize background service here
+  // We'll do it after permissions are granted
+  
   // Load saved theme mode
   final prefs = await SharedPreferences.getInstance();
   final savedThemeMode = prefs.getString('themeMode');
@@ -35,6 +40,26 @@ void main() async {
           orElse: () => ThemeMode.system,
         )
       : ThemeMode.system;
+
+  // Check if permissions are already granted and user has seen permissions screen
+  final hasSeenPermissionsScreen = prefs.getBool('hasSeenPermissionsScreen') ?? false;
+  if (hasSeenPermissionsScreen) {
+    bool allPermissionsGranted = true;
+    final permissions = [Permission.sms, Permission.notification];
+    
+    for (var permission in permissions) {
+      final status = await permission.status;
+      if (!status.isGranted) {
+        allPermissionsGranted = false;
+        break;
+      }
+    }
+    
+    if (allPermissionsGranted) {
+      // Only initialize if permissions are already granted
+      await initializeServices();
+    }
+  }
 
   runApp(MyApp(initialThemeMode: initialThemeMode));
 }

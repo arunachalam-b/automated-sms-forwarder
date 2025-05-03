@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:auto_sms_2/main.dart'; // Import to access initializeServices
 
 class PermissionsScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -77,6 +78,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       if (_termsAccepted && !_hasAcceptedTermsBefore) {
         await prefs.setBool('hasAcceptedTerms', true);
       }
+      
+      // Initialize services only after permissions are granted
+      await initializeServices();
       
       if (mounted) {
         Navigator.pushReplacement(

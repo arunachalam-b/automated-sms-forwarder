@@ -135,24 +135,13 @@ Future<void> _initializeSmsListener(ServiceInstance service) async {
     final dbHelper = DatabaseHelper();
     print('[SMS Init] Database helper initialized');
 
-    // Check permissions explicitly
+    // Check permissions explicitly without requesting them
     print('[SMS Init] Checking SMS permissions');
     bool smsPermission = await Permission.sms.status.isGranted;
     bool phonePermission = await Permission.phone.status.isGranted;
     
     print('[SMS Init] Permission status - SMS: $smsPermission, Phone: $phonePermission');
     
-    if (!smsPermission || !phonePermission) {
-      print('[SMS Init] Requesting missing permissions');
-      await Permission.sms.request();
-      await Permission.phone.request();
-      
-      // Check again after request
-      smsPermission = await Permission.sms.status.isGranted;
-      phonePermission = await Permission.phone.status.isGranted;
-      print('[SMS Init] Updated permission status - SMS: $smsPermission, Phone: $phonePermission');
-    }
-
     if (smsPermission && phonePermission) {
       print('[SMS Init] All permissions granted, setting up SMS listener');
       
