@@ -79,6 +79,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         await prefs.setBool('hasAcceptedTerms', true);
       }
       
+      // Wait a short moment to ensure permissions are registered system-wide
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       // Initialize services only after permissions are granted
       await initializeServices();
       

@@ -26,6 +26,10 @@ const String notificationContent = 'SMS forwarding service is running';
 const String initialNotificationTitle = 'Auto SMS Service';
 const String stopServiceAction = 'stopService';
 
+// Add a global variable to track service initialization attempts
+int _serviceInitializationAttempts = 0;
+const int _maxServiceInitializationAttempts = 2;
+
 // --- Background Service Initialization ---
 Future<void> initializeBackgroundService() async {
   // Initialize notification channel first - this is critical
@@ -125,7 +129,9 @@ void onStart(ServiceInstance service) async {
 // Separate function to make SMS setup more manageable
 Future<void> _initializeSmsListener(ServiceInstance service) async {
   try {
-    print('[SMS Init] Beginning SMS listener setup');
+    // Track initialization attempts to prevent infinite retries
+    _serviceInitializationAttempts++;
+    print('[SMS Init] Beginning SMS listener setup (Attempt $_serviceInitializationAttempts of $_maxServiceInitializationAttempts)');
     
     // Initialize telephony instance
     final Telephony telephony = Telephony.instance;
@@ -135,15 +141,34 @@ Future<void> _initializeSmsListener(ServiceInstance service) async {
     final dbHelper = DatabaseHelper();
     print('[SMS Init] Database helper initialized');
 
-    // Check permissions explicitly without requesting them
-    print('[SMS Init] Checking SMS permissions');
-    bool smsPermission = await Permission.sms.status.isGranted;
-    bool phonePermission = await Permission.phone.status.isGranted;
+    // Add retry mechanism for permission check with delay
+    bool smsPermission = false;
+    bool phonePermission = false;
+    int retryCount = 0;
     
-    print('[SMS Init] Permission status - SMS: $smsPermission, Phone: $phonePermission');
-    
+    while (retryCount < 3 && (!smsPermission || !phonePermission)) {
+      // Check permissions explicitly without requesting them
+      print('[SMS Init] Checking SMS permissions (attempt ${retryCount + 1})');
+      smsPermission = await Permission.sms.status.isGranted;
+      phonePermission = await Permission.phone.status.isGranted;
+      
+      print('[SMS Init] Permission status - SMS: $smsPermission, Phone: $phonePermission');
+      
+      if (!smsPermission || !phonePermission) {
+        // Wait a moment before retrying
+        print('[SMS Init] Permissions not detected yet, waiting before retry...');
+        await Future.delayed(const Duration(milliseconds: 500));
+        retryCount++;
+      } else {
+        break; // Permissions are granted, proceed
+      }
+    }
+
     if (smsPermission && phonePermission) {
       print('[SMS Init] All permissions granted, setting up SMS listener');
+      
+      // Reset initialization counter on success
+      _serviceInitializationAttempts = 0;
       
       // Update notification to show we're setting up
       if (service is AndroidServiceInstance) {
@@ -196,13 +221,31 @@ Future<void> _initializeSmsListener(ServiceInstance service) async {
       });
       
     } else {
-      print('[SMS Init] Required permissions not granted');
+      print('[SMS Init] Required permissions not granted after retries');
       
+      // Use a less alarming notification since we've already tried to verify permissions
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
-          title: "Permission Error",
-          content: "SMS and phone permissions required",
+          title: "SMS Service",
+          content: "Waiting for permissions to be granted",
         );
+      }
+      
+      // Try again after a longer delay ONLY if we haven't exceeded max attempts
+      if (_serviceInitializationAttempts < _maxServiceInitializationAttempts) {
+        print('[SMS Init] Will attempt to reinitialize SMS listener after delay (attempt $_serviceInitializationAttempts of $_maxServiceInitializationAttempts)');
+        Future.delayed(const Duration(seconds: 5), () {
+          _initializeSmsListener(service);
+        });
+      } else {
+        print('[SMS Init] Max initialization attempts reached. Will not retry automatically.');
+        // Use the standard notification instead of the "limited mode" message
+        if (service is AndroidServiceInstance) {
+          service.setForegroundNotificationInfo(
+            title: initialNotificationTitle,
+            content: notificationContent,
+          );
+        }
       }
     }
     
