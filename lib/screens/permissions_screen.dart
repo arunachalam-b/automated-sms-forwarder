@@ -1,7 +1,9 @@
 import 'package:auto_sms_2/screens/home_page.dart';
+import 'package:auto_sms_2/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PermissionsScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -28,12 +30,26 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     Permission.notification: 'To keep you informed about forwarded messages',
   };
 
+  bool _termsAccepted = false;
+  bool _hasAcceptedTermsBefore = false;
+
   bool get _allPermissionsGranted => _permissionStatus.values.every((status) => status);
+  bool get _canProceed => _allPermissionsGranted && (_termsAccepted || _hasAcceptedTermsBefore);
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _checkTermsAcceptance();
+  }
+
+  Future<void> _checkTermsAcceptance() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasAccepted = prefs.getBool('hasAcceptedTerms') ?? false;
+    setState(() {
+      _hasAcceptedTermsBefore = hasAccepted;
+      _termsAccepted = hasAccepted;
+    });
   }
 
   Future<void> _checkPermissions() async {
@@ -53,9 +69,15 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   }
 
   Future<void> _navigateToHome() async {
-    if (_allPermissionsGranted) {
+    if (_canProceed) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasSeenPermissionsScreen', true);
+      
+      // Save terms acceptance
+      if (_termsAccepted && !_hasAcceptedTermsBefore) {
+        await prefs.setBool('hasAcceptedTerms', true);
+      }
+      
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -65,6 +87,34 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               currentThemeMode: widget.currentThemeMode,
             ),
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    
+    try {
+      // On Android and iOS, we want to open the link in an external browser
+      if (!await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+        webViewConfiguration: const WebViewConfiguration(
+          enableJavaScript: true,
+          enableDomStorage: true,
+        ),
+      )) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not launch: $urlString')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error launching URL: ${e.toString()}')),
         );
       }
     }
@@ -184,6 +234,87 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                   },
                 ),
               ),
+              
+              // Terms and conditions checkbox (only show if not previously accepted)
+              if (!_hasAcceptedTermsBefore)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A3139),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _termsAccepted,
+                              onChanged: (value) {
+                                setState(() {
+                                  _termsAccepted = value ?? false;
+                                });
+                              },
+                              fillColor: MaterialStateProperty.resolveWith<Color>(
+                                (Set<MaterialState> states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return const Color(0xFF3498DB);
+                                  }
+                                  return Colors.grey;
+                                },
+                              ),
+                            ),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                      text: 'I accept the ',
+                                    ),
+                                    WidgetSpan(
+                                      child: GestureDetector(
+                                        onTap: () => _launchUrl(AppUrls.termsAndConditions),
+                                        child: const Text(
+                                          AppStrings.termsAndConditions,
+                                          style: TextStyle(
+                                            color: Color(0xFF3498DB),
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                      text: ' and ',
+                                    ),
+                                    WidgetSpan(
+                                      child: GestureDetector(
+                                        onTap: () => _launchUrl(AppUrls.privacyPolicy),
+                                        child: const Text(
+                                          AppStrings.privacyPolicy,
+                                          style: TextStyle(
+                                            color: Color(0xFF3498DB),
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              
               // Bottom button
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24.0),
@@ -191,7 +322,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _allPermissionsGranted ? _navigateToHome : null,
+                    onPressed: _canProceed ? _navigateToHome : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3498DB),
                       foregroundColor: Colors.white,
