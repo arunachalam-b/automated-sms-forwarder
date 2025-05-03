@@ -115,12 +115,6 @@ void onStart(ServiceInstance service) async {
   // Basic status update (optional)
   Timer.periodic(const Duration(minutes: 2), (timer) {
     print('[BG Service] Service heartbeat - still alive');
-    if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: initialNotificationTitle,
-        content: "Running for ${timer.tick * 2} minutes",
-      );
-    }
   });
 
   // --- SMS Listening Logic --- 
