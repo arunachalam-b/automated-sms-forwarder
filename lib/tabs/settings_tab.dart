@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/webview_screen.dart';
+import '../utils/constants.dart';
 
 class SettingsTab extends StatefulWidget {
   final void Function(ThemeMode) onThemeChanged;
@@ -133,9 +134,9 @@ class _SettingsTabState extends State<SettingsTab> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          'Legal',
-                          style: TextStyle(
+                        Text(
+                          AppStrings.legal,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -145,15 +146,15 @@ class _SettingsTabState extends State<SettingsTab> {
                     const SizedBox(height: 16),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Terms and Conditions'),
+                      title: Text(AppStrings.termsAndConditions),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const WebViewScreen(
-                              url: 'https://forward-sms.vercel.app/terms-and-conditions',
-                              title: 'Terms and Conditions',
+                            builder: (context) => WebViewScreen(
+                              url: AppUrls.termsAndConditions,
+                              title: AppStrings.termsAndConditions,
                             ),
                           ),
                         );
@@ -161,15 +162,15 @@ class _SettingsTabState extends State<SettingsTab> {
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Privacy Policy'),
+                      title: Text(AppStrings.privacyPolicy),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const WebViewScreen(
-                              url: 'https://forward-sms.vercel.app/privacy-policy',
-                              title: 'Privacy Policy',
+                            builder: (context) => WebViewScreen(
+                              url: AppUrls.privacyPolicy,
+                              title: AppStrings.privacyPolicy,
                             ),
                           ),
                         );
