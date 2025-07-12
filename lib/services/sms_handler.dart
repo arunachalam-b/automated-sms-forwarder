@@ -74,8 +74,9 @@ Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Tel
       for (final recipient in matchedFilter.recipients) {
         String status = 'Failed';
         String? errorMessage;
+        String forwardMessage = '';
         try {
-          String forwardMessage = message.body ?? '[Empty Body]';
+          forwardMessage = message.body?.substring(0, 160) ?? '[Empty Body]';
           await telephony.sendSms(to: recipient, message: forwardMessage);
           print('[ProcessSMS] Successfully forwarded to $recipient');
           status = 'Sent';
@@ -84,7 +85,7 @@ Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Tel
           errorMessage = e.toString();
           print('[ProcessSMS] Error sending SMS to $recipient: $errorMessage');
         }
-        await logForwardedSms(dbHelper, message, recipient, matchedFilter.id, status, errorMessage);
+        await logForwardedSms(dbHelper, message, forwardMessage, recipient, matchedFilter.id, status, errorMessage);
       }
       
       // Show notification with the list of recipients
@@ -151,13 +152,13 @@ Future<void> showForwardingNotification({
 }
 
 // Logging function
-Future<void> logForwardedSms(DatabaseHelper dbHelper, SmsMessage originalMessage, String forwardedTo, String filterId, String status, String? errorMessage) async {
+Future<void> logForwardedSms(DatabaseHelper dbHelper, SmsMessage originalMessage, String messageBody, String forwardedTo, String filterId, String status, String? errorMessage) async {
   print('[LogSMS] Logging forwarded message: ${originalMessage.address} -> $forwardedTo (Status: $status)');
   final logEntry = ForwardedSmsLog(
     filterId: filterId,
     originalSender: originalMessage.address ?? 'Unknown Sender',
     forwardedTo: forwardedTo,
-    messageContent: originalMessage.body ?? '',
+    messageContent: messageBody,
     dateTime: DateTime.now(),
     status: status,
     errorMessage: errorMessage,

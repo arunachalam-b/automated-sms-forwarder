@@ -275,22 +275,3 @@ Future<void> _initializeSmsListener(ServiceInstance service) async {
     }
   }
 }
-
-// --- Logging Logic (Keep as is) ---
-Future<void> logForwardedSms(DatabaseHelper dbHelper, SmsMessage originalMessage, String forwardedTo, String filterId, String status, String? errorMessage) async {
-  print('[LogSMS] Logging forwarded message: ${originalMessage.address} -> $forwardedTo (Status: $status)');
-  final logEntry = ForwardedSmsLog(
-    filterId: filterId,
-    originalSender: originalMessage.address ?? 'Unknown Sender',
-    forwardedTo: forwardedTo,
-    messageContent: originalMessage.body ?? '',
-    dateTime: DateTime.now(),
-    status: status,
-    errorMessage: errorMessage,
-  );
-  try {
-    await dbHelper.insertForwardedSmsLog(logEntry);
-  } catch (e) {
-     print("[LogSMS] Error inserting SMS log into database: $e");
-  }
-} 
