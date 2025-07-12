@@ -76,7 +76,10 @@ Future<void> processIncomingSms(SmsMessage message, DatabaseHelper dbHelper, Tel
         String? errorMessage;
         String forwardMessage = '';
         try {
-          forwardMessage = message.body?.substring(0, 160) ?? '[Empty Body]';
+          forwardMessage = message.body ?? '[Empty Body]';
+          if (forwardMessage.length > 160) {
+            forwardMessage = forwardMessage.substring(0, 160);
+          }
           await telephony.sendSms(to: recipient, message: forwardMessage);
           print('[ProcessSMS] Successfully forwarded to $recipient');
           status = 'Sent';
